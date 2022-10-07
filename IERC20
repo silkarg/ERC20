@@ -1,0 +1,132 @@
+///////////////////////////////////////// ERC 20 A MANO //////////////
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+interface IERC20 {
+    function totalSupply() external  view returns (uint256);
+    function balanceOf(address _owner) external  view returns (uint256 balance);
+    function transfer(address _to, uint256 _value) external returns (bool success);
+    function transferFrom(address _from, address _to, uint256 _value) external  returns (bool success);
+    function approve(address _spender, uint256 _value) external  returns (bool success);
+    function allowance(address _owner, address _spender) external  view returns (uint256 remaining);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+}
+
+contract ERC20 is IERC20{
+    
+    // variables
+        /*
+            name
+            symbol
+            decimals
+            totalsupply   
+        */
+            string public name;
+            string public symbol;
+            uint8 public decimals = 18;
+            uint256 totalSupply_;
+            
+        /* Varaibles para los registros: 
+                        owner               cantidad
+            balances: address(EOA || CA) => uint256
+                        owner   spender     cantidad
+            allowed: address => address => uint256
+        */
+            mapping (address => uint256) balances;
+            mapping(address=> mapping(address=>uint256)) allowed;
+            
+    // funciones
+
+    constructor(string memory _name, string memory _symbol, uint256 _totalSupply){
+        name = _name;
+        symbol = _symbol;
+        totalSupply_ = _totalSupply * 10 ** decimals;
+        //totalSupply_ = _totalSupply * 1 ether;
+        
+        /*  Definir un total supply para el owner
+        */
+        balances[msg.sender] = _totalSupply;
+
+        /*  Definir un total supply para el contrato
+            address(this) === "al address del contrato"
+        */
+        //balances[address(this)] = _totalSupply;
+    }
+
+    function totalSupply() public override view returns (uint256){
+        return totalSupply_;
+    }
+
+    function balanceOf(address _owner) public override   view returns (uint256 balance){
+        return balances[_owner];
+    }
+
+    /* Transfer function:
+        verificar que el numero de tokens es menor o igual al balance de quien envia
+        actualizar balance de quien envia
+        actualizar balance de quien recibe
+        emitir nuestro evento
+        retornar true
+        
+    */
+    function transfer(address _to, uint256 _value) public override returns (bool success){
+        require(_value<= balances[msg.sender], "No tienes el balance suficiente");
+        balances[msg.sender] -= _value;
+        balances[_to]  += _value;
+        emit Transfer(msg.sender, _to,_value);
+        return true;
+    }
+
+    
+    /* TransferFrom: // trasferir desde una cuenta con allowance a otra cierto numero de tokens
+        verificar que el numero de tokens a enviar sean igual o menor que el ballance del owner
+        verificar que el numero de tokens a enviar sean igual o menor que los permitidos a gastar por el owner
+        
+        actualizar el balance del owner 
+        actualizar el allowed del spender
+        actualizar el balance del buyer(_to)
+        emitir el vento transfer
+        retornar true
+    */
+
+    function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success){
+        require(_value<= balances[_from], "El owner no tiene el balance suficiente");
+        require(_value <= allowed[_from][msg.sender], "El owner no te ha permitido gastar tanta cantidad");
+
+        balances[_from] -= _value;
+        allowed[_from][msg.sender] -= _value;
+        balances[_to] += _value;
+        emit Transfer(_from, _to,_value);
+        return true;
+    }
+
+    /* Aprove: aprovar a una cuenta gastar cierto numero de tokens
+        actualizar el mapping de allowed con la addres del dueño y ddespues del spender igual al numero de tokens a gastar
+        emitir el evento de approval
+        retornar verdadero
+    */
+
+    function approve(address _spender, uint256 _value) public override returns (bool success){
+        //      owner       spender     value
+        allowed[msg.sender][_spender] = _value;
+        emit Approval( msg.sender, _spender, _value);
+        return true;
+    }
+
+    function allowance(address _owner, address _spender) public override view returns (uint256 remaining){
+        return allowed[_owner][_spender];
+    }
+}
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract MauCoin is ERC20 {
+    constructor(uint256 initialSupply) ERC20("Mau Coin", "MAC2") {
+        _mint(msg.sender, initialSupply);
+    }
+}
+            
